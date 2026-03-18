@@ -1,0 +1,73 @@
+volumes:
+  keytabs:
+
+services:
+
+  # ── MIT KDC (also bootstraps principals + keytab on first start) ──────────
+  kdc:
+    image: gcavalcante8808/krb5-server:latest
+    environment:
+      KRB5_REALM: ${KRB5_REALM:-EXAMPLE.COM}
+      KRB5_KDC: kdc
+      KEYTAB_DIR: /keytabs
+    volumes:
+      - keytabs:/keytabs
+      - ./docker/kdc-entrypoint.sh:/kdc-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/kdc-entrypoint.sh"]
+    ports:
+      - "88:88/tcp"
+      - "88:88/udp"
+    healthcheck:
+      test: ["CMD", "/usr/sbin/kadmin.local", "-q", "listprincs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── HiveServer2 (Impala-compatible endpoint) ───────────────────────────────
+  hive:
+    image: apache/hive:3.1.3
+    depends_on:
+      kdc:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: hiveserver2
+      KRB5_REALM: ${KRB5_REALM:-EXAMPLE.COM}
+      KRB5_CONFIG: /etc/krb5/krb5.conf
+    volumes:
+      - keytabs:/keytabs:ro
+      - ./krb5/krb5.conf:/etc/krb5/krb5.conf:ro
+      - ./docker/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+    ports:
+      - "10000:10000"
+
+  # ── Backend service ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      kdc:
+        condition: service_healthy
+      hive:
+        condition: service_started
+    environment:
+      KRB5_REALM: ${KRB5_REALM:-EXAMPLE.COM}
+      KRB5_KDC: ${KRB5_KDC:-kdc}
+      KRB5_PRINCIPAL: ${KRB5_PRINCIPAL:-backend@EXAMPLE.COM}
+      KRB5_KEYTAB_PATH: /keytabs/backend.keytab
+      IMPALA_HOST: ${IMPALA_HOST:-hive}
+      IMPALA_PORT: ${IMPALA_PORT:-10000}
+      IMPALA_DATABASE: ${IMPALA_DATABASE:-default}
+      IMPALA_USE_TLS: ${IMPALA_USE_TLS:-false}
+      IMPALA_POOL_MIN: ${IMPALA_POOL_MIN:-2}
+      IMPALA_POOL_MAX: ${IMPALA_POOL_MAX:-10}
+      IMPALA_QUERY_TIMEOUT: ${IMPALA_QUERY_TIMEOUT:-60}
+      KRB5_AUTH_MODE: ${KRB5_AUTH_MODE:-keytab}
+      KRB5_RENEWAL_THRESHOLD_SECONDS: ${KRB5_RENEWAL_THRESHOLD_SECONDS:-300}
+      KRB5_MAX_RETRY: ${KRB5_MAX_RETRY:-3}
+      IMPALA_AUTH_MECHANISM: ${IMPALA_AUTH_MECHANISM:-PLAIN}
+    volumes:
+      - keytabs:/keytabs:ro
+      - ./krb5/krb5.conf:/etc/krb5/krb5.conf:ro
+    ports:
+      - "8000:8000"

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Local dev hive-site.xml.
+  Uses NONE authentication and embedded Derby metastore so HiveServer2
+  starts without needing a real Hadoop cluster or external metastore.
+-->
+<configuration>
+
+  <!-- Auth: no Kerberos for local dev -->
+  <property>
+    <name>hive.server2.authentication</name>
+    <value>NONE</value>
+  </property>
+
+  <!-- Thrift endpoint -->
+  <property>
+    <name>hive.server2.thrift.port</name>
+    <value>10000</value>
+  </property>
+
+  <property>
+    <name>hive.server2.thrift.bind.host</name>
+    <value>0.0.0.0</value>
+  </property>
+
+  <!-- Embedded Derby metastore (no external DB needed) -->
+  <property>
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:derby:;databaseName=/tmp/hive_metastore_db;create=true</value>
+  </property>
+
+  <property>
+    <name>javax.jdo.option.ConnectionDriverName</name>
+    <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+  </property>
+
+  <!-- Use local filesystem instead of HDFS -->
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>/tmp/hive/warehouse</value>
+  </property>
+
+  <property>
+    <name>hive.exec.scratchdir</name>
+    <value>/tmp/hive/scratch</value>
+  </property>
+
+  <!-- Disable doAs (no real user impersonation needed) -->
+  <property>
+    <name>hive.server2.enable.doAs</name>
+    <value>false</value>
+  </property>
+
+  <!-- Skip Hadoop version check -->
+  <property>
+    <name>hive.server2.hadoop.version.check</name>
+    <value>false</value>
+  </property>
+
+  <!-- Use local execution engine (no YARN/Tez cluster) -->
+  <property>
+    <name>hive.execution.engine</name>
+    <value>mr</value>
+  </property>
+
+  <!-- Disable stats collection (avoids HDFS calls) -->
+  <property>
+    <name>hive.stats.autogather</name>
+    <value>false</value>
+  </property>
+
+</configuration>

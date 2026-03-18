@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic-settings
+impyla
+thrift
+thrift-sasl
+pure-sasl
+gssapi
+hypothesis
+pytest
+pytest-asyncio
+httpx
+python-dotenv
